@@ -18,15 +18,15 @@ namespace AsgardMarketplace.Domain.Repositories
 
         #region Items
         // Gets item by itemId
-        public async Task<Item> GetItem(string id)
+        public async Task<Item> GetItem(int id)
         {
             var item = await context.Items.FindAsync(
-                int.Parse(id) //ItemId
+                id //ItemId
                 );
 
             if (item is null)
             {
-                item = new Item() { State = "NOT_FOUNT" };
+                item = new Item() { State = "NOT_FOUND" };
             }
             return item;
         }
@@ -59,13 +59,44 @@ namespace AsgardMarketplace.Domain.Repositories
         #region Orders
 
         //Gets all orders
-        public async Task<List<Order>> GetAllOrders(
-            int ofs, //Offset
-            int lmt) //Limit
+        public async Task<List<Order>> GetAllOrders(int offset, int limit, int userId)
         {
             List<Order> result;
-            result = await context.Orders.Skip(ofs).Take(lmt).ToListAsync();
+            result = await context.Orders
+                .Where(x => x.Buyer == userId.ToString())
+                .Skip(offset).Take(limit).ToListAsync();
             return result;
+        }
+
+        //Gets order
+        public async Task<Order> GetOrder(Guid orderId)
+        {
+            Order order = await context.Orders.FirstOrDefaultAsync(x => x.Id == orderId);
+            return order;
+        }
+
+        //Gets order
+        public async Task<bool> MarkOrderAsPaid(Guid orderId, string paymentId, string paymentUrl)
+        {
+            Order order = await GetOrder(orderId);
+            order.PaymentId = paymentId;
+            order.PaymentUrl = paymentUrl;
+            await context.SaveChangesAsync();
+            return true;
+        }
+
+        // Create Order
+        public async Task<bool> CreateOrder(Order order) 
+        {
+            try {
+                context.Orders.Add(order);
+                await context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
         }
 
         //Deletes orders that are not completed and older than 2 hours
@@ -99,20 +130,13 @@ namespace AsgardMarketplace.Domain.Repositories
         {
             var order = await context.Orders.FirstOrDefaultAsync(x => x.Id == guid);
 
-            bool marked;
-
             if (order.State != "COMPLETED")
             {
                 order.State = "COMPLETED";
                 await context.SaveChangesAsync();
-                marked = true;
+                return (true, order);
             }
-            else
-            {
-                marked = false;
-            }
-
-            return (marked, order);
+            return (false, order);
         }
 
         #endregion

@@ -18,7 +18,34 @@ namespace AsgardMarketplace.Domain.Services
             await repo.RemoveOrders();
         }
 
-        public async Task<bool> MarkOrderAsDelivered(string userId1, Guid guid)
+        public async Task<string> CreateOrder(string buyerId, string sellerId, Item item, int quantity) 
+        {
+            Order order = new Order(){
+                Id = Guid.NewGuid(),
+                ItemId = item.Id,
+                Quantity = quantity,
+                CreatedDate = DateTime.Now,
+                State = "Created",
+                PaymentId = "",
+                PaymentUrl = "",
+                Buyer = buyerId,
+                Seller = sellerId
+            };
+
+            var result = await repo.CreateOrder(order);
+            if (!result)
+                return "Error saving Order to DB";
+            return "Order created succcesfully with ID: " + order.Id;
+            
+        }
+
+        public async Task<bool> MarkOrderAsPaid(Guid guid, string paymentId, string paymentUrl) 
+        {
+            var result = await repo.MarkOrderAsPaid(guid, paymentId, paymentUrl);
+            return result;
+        }
+        
+        public async Task<bool> MarkOrderAsDelivered(string userId, Guid guid)
         {
 
             var result = await repo.MarkCompleted(guid);
@@ -28,7 +55,7 @@ namespace AsgardMarketplace.Domain.Services
                 var NotificationService = new NotificationService();
 
                 NotificationService.SendNotification(
-                    userId1,             // Seller
+                    userId,             // Seller
                     result.Item2.Buyer,  // Buyer
                     guid.ToString(),     // OrderId
                     null,                // PaymentId
